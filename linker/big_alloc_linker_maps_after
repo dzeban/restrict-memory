@@ -1,0 +1,51 @@
+08048000-08049000 r-xp 00000000 fd:02 1573131    /home/avd/dev/restrict-memory/big_alloc
+08049000-0804a000 r--p 00000000 fd:02 1573131    /home/avd/dev/restrict-memory/big_alloc
+0804a000-0804b000 rw-p 00001000 fd:02 1573131    /home/avd/dev/restrict-memory/big_alloc
+4224a000-42269000 r-xp 00000000 fd:01 521870     /usr/lib/ld-2.18.so
+42269000-4226a000 r--p 0001e000 fd:01 521870     /usr/lib/ld-2.18.so
+4226a000-4226b000 rw-p 0001f000 fd:01 521870     /usr/lib/ld-2.18.so
+4226d000-42425000 r-xp 00000000 fd:01 521871     /usr/lib/libc-2.18.so
+42425000-42427000 r--p 001b8000 fd:01 521871     /usr/lib/libc-2.18.so
+42427000-42428000 rw-p 001ba000 fd:01 521871     /usr/lib/libc-2.18.so
+42428000-4242b000 rw-p 00000000 00:00 0 
+b1687000-b7788000 rw-p 00000000 00:00 0 
+b779e000-b77a0000 rw-p 00000000 00:00 0 
+b77a0000-b77a1000 r-xp 00000000 00:00 0          [vdso]
+b77a1000-b77a3000 r--p 00000000 00:00 0          [vvar]
+bf5ff000-bf600000 rw-p 00001000 fd:02 1573131    /home/avd/dev/restrict-memory/big_alloc
+bfb14000-bfeec000 rw-p 00000000 00:00 0          [heap]
+bfefa000-bff1b000 rw-p 00000000 00:00 0          [stack]
+
+
+
+pp[0] = 0xbfb14fb0
+pp[1] = 0xbfb2dfb8
+pp[2] = 0xbfb46fc0
+pp[3] = 0xbfb5ffc8
+pp[4] = 0xbfb78fd0
+pp[5] = 0xbfb91fd8
+pp[6] = 0xbfbaafe0
+...
+pp[34] = 0xbfe670c0
+pp[35] = 0xbfe800c8
+pp[36] = 0xbfe990d0
+pp[37] = 0xbfeb20d8
+pp[38] = 0xbfecb0e0
+pp[39] = 0xb7687008
+pp[40] = 0xb76a0010
+pp[41] = 0xb76b9018
+pp[42] = 0xb76d2020
+pp[43] = 0xb76eb028
+pp[44] = 0xb7704030
+pp[45] = 0xb771d038
+pp[46] = 0xb7736040
+...
+pp[992] = 0xb17d2020
+pp[993] = 0xb17eb028
+pp[994] = 0xb1804030
+pp[995] = 0xb181d038
+pp[996] = 0xb1836040
+pp[997] = 0xb184f048
+pp[998] = 0xb1868050
+pp[999] = 0xb1687008
+

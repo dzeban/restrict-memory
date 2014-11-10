@@ -1,0 +1,16 @@
+08048000-08049000 r-xp 00000000 fd:02 1573131    /home/avd/dev/restrict-memory/big_alloc
+08049000-0804a000 r--p 00000000 fd:02 1573131    /home/avd/dev/restrict-memory/big_alloc
+0804a000-0804b000 rw-p 00001000 fd:02 1573131    /home/avd/dev/restrict-memory/big_alloc
+4224a000-42269000 r-xp 00000000 fd:01 521870     /usr/lib/ld-2.18.so
+42269000-4226a000 r--p 0001e000 fd:01 521870     /usr/lib/ld-2.18.so
+4226a000-4226b000 rw-p 0001f000 fd:01 521870     /usr/lib/ld-2.18.so
+4226d000-42425000 r-xp 00000000 fd:01 521871     /usr/lib/libc-2.18.so
+42425000-42427000 r--p 001b8000 fd:01 521871     /usr/lib/libc-2.18.so
+42427000-42428000 rw-p 001ba000 fd:01 521871     /usr/lib/libc-2.18.so
+42428000-4242b000 rw-p 00000000 00:00 0 
+b7787000-b7788000 rw-p 00000000 00:00 0 
+b779f000-b77a0000 rw-p 00000000 00:00 0 
+b77a0000-b77a1000 r-xp 00000000 00:00 0          [vdso]
+b77a1000-b77a3000 r--p 00000000 00:00 0          [vvar]
+bf5ff000-bf600000 rw-p 00001000 fd:02 1573131    /home/avd/dev/restrict-memory/big_alloc
+bfefa000-bff1b000 rw-p 00000000 00:00 0          [stack]

@@ -1,0 +1,28 @@
+
+This directory contains linker related stuff gathered while I was researching
+linker hacks. Refer to <avd.reduct.ru/programming/restrict-memory.html#Linker>.
+
+
+-> Default and modified (shifted `.data` section) scripts:
+
+- default.lst
+- hack.lst
+
+-> Process maps (/proc/<pid>/maps) before and after allocations of normal
+binary `big_alloc` and modified `big_alloc`:
+
+- big_alloc_maps_before
+- big_alloc_maps_after
+- big_alloc_linker_maps_before
+- big_alloc_linker_maps_after
+
+
+-> Trace of memory accesses (`strace -e trace=memory`) of normal and modified
+binaries:
+
+- big_alloc.trace
+- big_alloc_linker.trace
+
+-> Exact command to build program (invocation of `cc1`, `as` and `collect2`):
+
+- verbose
