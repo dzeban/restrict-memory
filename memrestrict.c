@@ -45,7 +45,7 @@ static void account(void *ptr, size_t size)
 
 		mem_allocated += size;
 
-		fprintf(stderr, "Alloc: %p -> %zu\n", ptr, size);
+		// fprintf(stderr, "Alloc: %p -> %zu\n", ptr, size);
 	}
 	// Freeing memory
 	else
@@ -56,7 +56,7 @@ static void account(void *ptr, size_t size)
 		if (found)
 		{
 			mem_allocated -= found->size;
-			fprintf(stderr, "Free: %p -> %zu\n", found->p, found->size);
+			// fprintf(stderr, "Free: %p -> %zu\n", found->p, found->size);
 			HASH_DEL(HT, found);
 			free(found);
 		}
@@ -66,7 +66,7 @@ static void account(void *ptr, size_t size)
 		}
 	}
 
-	fprintf(stderr, " [[[:::  %d (%u) :::]]] \n", mem_allocated, HASH_COUNT(HT));
+	// fprintf(stderr, " [[[:::  %d (%u) :::]]] \n", mem_allocated, HASH_COUNT(HT));
 }
 
 static void save_libc_malloc()

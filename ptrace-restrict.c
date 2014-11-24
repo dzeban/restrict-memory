@@ -59,7 +59,7 @@ void handle_brk(pid_t pid, struct user_regs_struct state)
 	{
 		dbg("brk return: 0x%08X, brk_start 0x%08X\n", state.eax, brk_start);
 
-		if (brk_start)
+		if (brk_start) // We have start of brk
 		{
 			diff = state.eax - brk_start;
 
