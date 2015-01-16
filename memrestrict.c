@@ -8,10 +8,10 @@
 
 #include <uthash.h>
 
-static void* (*libc_malloc)(size_t) = NULL;
-static void* (*libc_calloc)(size_t, size_t) = NULL;
+static void* (*libc_malloc) (size_t)         = NULL;
+static void* (*libc_calloc) (size_t, size_t) = NULL;
 static void* (*libc_realloc)(void *, size_t) = NULL;
-static void* (*libc_free)(void *) = NULL;
+static void  (*libc_free)   (void *)         = NULL;
 
 struct malloc_item
 {
@@ -25,40 +25,25 @@ struct malloc_item *HT = NULL;
 
 // Total memory allocated
 static unsigned long mem_allocated = 0;
+static unsigned long mem_threshold = 0;
 
-// TODO: Read this from env
-#define MEM_THRESHOLD 2*1048576 // 2 MiB threshold
+#define DEFAULT_MEM_THRESHOLD 2 * 1048576 // Default threshold is 2 MiB;
 
 // Thread-local var to prevent malloc/free recursion
 static __thread int no_hook;
 
-static void save_libc_malloc()
-{
-	libc_malloc = dlsym(RTLD_NEXT, "malloc");
-	if (NULL == libc_malloc) 
-		perror("dlsym");
-}
+static int DEBUG = -1;
+#define log(M, ...) do {\
+	if (DEBUG) { fprintf(stderr, "MEMRESTRICT:%d " M "\n", __LINE__, ##__VA_ARGS__); }\
+} while(0)
 
-static void save_libc_calloc()
-{
-	libc_calloc = dlsym(RTLD_NEXT, "calloc");
-	if (NULL == libc_calloc) 
-		perror("dlsym");
-}
+// Wrapper to save original libc functions to global var
+#define SAVE_LIBC_FUNC(var, f) do { \
+	var = dlsym(RTLD_NEXT, f);\
+	if (NULL == var) \
+		perror("dlsym");\
+} while(0)
 
-static void save_libc_realloc()
-{
-	libc_realloc = dlsym(RTLD_NEXT, "realloc");
-	if (NULL == libc_realloc)
-		perror("dlsym");
-}
-
-static void save_libc_free()
-{
-	libc_free = dlsym(RTLD_NEXT, "free");
-	if (NULL == libc_free) 
-		perror("dlsym");
-}
 
 static void account_alloc(void *ptr, size_t size)
 {
@@ -66,8 +51,7 @@ static void account_alloc(void *ptr, size_t size)
 	no_hook = 1;
 
 	// Allocating memory
-	if (size != 0)
-	{
+	if (size != 0) {
 		struct malloc_item *item, *out;
 
 		item = malloc(sizeof(*item));
@@ -78,31 +62,28 @@ static void account_alloc(void *ptr, size_t size)
 
 		mem_allocated += size;
 
-		fprintf(stderr, "Alloc: %p -> %zu\n", ptr, size);
-	}
+		log("Alloc: %p -> %zu\n", ptr, size);
+	} 
 	// Freeing memory
-	else
-	{
+	else { 
 		struct malloc_item *found;
 
 		HASH_FIND_PTR(HT, &ptr, found);
-		if (found)
-		{
+		if (found) {
 			mem_allocated -= found->size;
-			fprintf(stderr, "Free: %p -> %zu\n", found->p, found->size);
+			log("Free: %p -> %zu\n", found->p, found->size);
 			HASH_DEL(HT, found);
 			free(found);
-		}
-		else
-		{
-			fprintf(stderr, "Freeing unaccounted allocation %p\n", ptr);
+		} else {
+			log("Freeing unaccounted allocation %p\n", ptr);
 		}
 	}
 
-	fprintf(stderr, " [[[:::  %d (%u) :::]]] \n", mem_allocated, HASH_COUNT(HT));
+	log(" [[[:::  %d (%u) :::]]] \n", mem_allocated, HASH_COUNT(HT));
 
 	no_hook = 0;
 }
+
 
 static void account_realloc(void *p, void *ptr, size_t size)
 {
@@ -110,53 +91,68 @@ static void account_realloc(void *p, void *ptr, size_t size)
 	no_hook = 1;
 
 	// ptr == NULL is equivalent to malloc(size) 
-	if (ptr == NULL)
-	{
+	if (ptr == NULL) {
 		account_alloc(p, size);
 	}
 	// size == 0 is equivalent to free(ptr), 
 	// and p will be NULL
-	else if (size == 0)
-	{
+	else if (size == 0) {
 		account_alloc(ptr, size);
 	}
 	// Now the real realloc
-	else
-	{
-		fprintf(stderr, "Realloc: %p -> %d\n", ptr, size);
+	else {
+		log("Realloc: %p -> %d\n", ptr, size);
 
 		// if ptr was moved previous area will be freed
-		if (p != ptr)
-		{
-			fprintf(stderr, "Realloc: Replacing pointer %p to %p\n", ptr, p);
+		if (p != ptr) {
+			log("Realloc: Replacing pointer %p to %p\n", ptr, p);
 			account_alloc(ptr, 0);
 			account_alloc(p, size);
-		}
-		else
-		{
+		} else {
 			struct malloc_item *found;
 			int alloc_diff;
 
 			HASH_FIND_PTR(HT, &ptr, found);
-			if (found)
-			{
+			if (found) {
 				// alloc_diff may be negative when shrinking memory
 				alloc_diff = size - found->size;
 
 				mem_allocated += alloc_diff;
 				found->size += alloc_diff;
-				fprintf(stderr, "Realloc: diff %p -> %d\n", ptr, alloc_diff);
-			}
-			else
-			{
-				fprintf(stderr, "Reallocating unaccounted pointer %p\n", ptr);
+				log("Realloc: diff %p -> %d\n", ptr, alloc_diff);
+			} else {
+				log("Reallocating unaccounted pointer %p\n", ptr);
 			}
 		}
 	}
 
-	fprintf(stderr, " [[[:::  %d (%u) :::]]] \n", mem_allocated, HASH_COUNT(HT));
+	log(" [[[:::  %d (%u) :::]]] \n", mem_allocated, HASH_COUNT(HT));
 
 	no_hook = 0;
+}
+
+
+// Initialize library parameters from environment.
+// We don't have main(), so we have to call it in every callback.
+static inline void init_env()
+{
+	char *t;
+
+	if (mem_threshold == 0) {
+		t = secure_getenv("MR_THRESHOLD");
+		if (t)
+			mem_threshold = strtol(t, NULL, 0);
+		else
+			mem_threshold = DEFAULT_MEM_THRESHOLD;
+	}
+
+	if (DEBUG == -1) {
+		t = secure_getenv("MR_DEBUG");
+		if (t)
+			DEBUG = strtol(t, NULL, 0);
+		else
+			DEBUG = 0;
+	}
 }
 
 
@@ -165,68 +161,59 @@ void *malloc(size_t size)
 	void *p = NULL;
 
 	if (libc_malloc == NULL) 
-		save_libc_malloc();
+		SAVE_LIBC_FUNC(libc_malloc, "malloc");
 
-	if (mem_allocated <= MEM_THRESHOLD)
-	{
+	init_env();
+
+	if (mem_allocated <= mem_threshold) {
 		p = libc_malloc(size);
-	}
-	else
-	{
+	} else {
 		errno = ENOMEM;
 		return NULL;
 	}
 
 	if (!no_hook) 
-	{
-		no_hook = 1;
 		account_alloc(p, size);
-		no_hook = 0;
-	}
 
 	return p;
 }
+
 
 void *calloc(size_t nmemb, size_t size)
 {
 	void *p = NULL;
 
 	if (libc_calloc == NULL)
-		save_libc_calloc();
+		SAVE_LIBC_FUNC(libc_calloc, "calloc");
 
-	if (mem_allocated <= MEM_THRESHOLD)
-	{
+	init_env();
+
+	if (mem_allocated <= mem_threshold) {
 		p = libc_calloc(nmemb, size);
-	}
-	else
-	{
+	} else {
 		errno = ENOMEM;
 		return NULL;
 	}
 
 	if (!no_hook)
-	{
-		no_hook = 1;
 		account_alloc(p, nmemb * size);
-		no_hook = 0;
-	}
 
 	return p;
 }
+
 
 void *realloc(void *ptr, size_t size)
 {
 	void *p = NULL;
 
 	if (libc_realloc == NULL)
-		save_libc_realloc();
+		SAVE_LIBC_FUNC(libc_realloc, "realloc");
 
-	if (mem_allocated <= MEM_THRESHOLD)
-	{
+	init_env();
+
+	if (mem_allocated <= mem_threshold) {
 		p = libc_realloc(ptr, size);
-	}
-	else
-	{
+	} else {
 		errno = ENOMEM;
 		return NULL;
 	}
@@ -237,10 +224,13 @@ void *realloc(void *ptr, size_t size)
 	return p;
 }
 
+
 void free(void *ptr)
 {
 	if (libc_free == NULL)
-		save_libc_free();
+		SAVE_LIBC_FUNC(libc_free, "free");
+
+	init_env();
 
 	libc_free(ptr);
 
