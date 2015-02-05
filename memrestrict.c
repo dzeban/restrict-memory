@@ -5,6 +5,7 @@
 #include <stdlib.h>
 #include <errno.h>
 #include <dlfcn.h>
+#include <stdarg.h>
 
 #include <uthash.h>
 
@@ -12,6 +13,11 @@ static void* (*libc_malloc) (size_t)         = NULL;
 static void* (*libc_calloc) (size_t, size_t) = NULL;
 static void* (*libc_realloc)(void *, size_t) = NULL;
 static void  (*libc_free)   (void *)         = NULL;
+static void* (*libc_mmap)(void *, size_t, int, int, int, off_t) = NULL;
+static void* (*libc_mmap2)(void *, size_t, int, int, int, off_t) = NULL;
+static void* (*libc_mremap)(void *, size_t, size_t, int, ...) = NULL;
+static int   (*libc_brk)(void *) = NULL;
+static void* (*libc_sbrk)(intptr_t) = NULL;
 
 struct malloc_item
 {
@@ -165,9 +171,10 @@ void *malloc(size_t size)
 
 	init_env();
 
-	if (mem_allocated <= mem_threshold) {
+	if (mem_allocated + size <= mem_threshold) {
 		p = libc_malloc(size);
 	} else {
+		log("Restricting malloc of %zu bytes\n", size);
 		errno = ENOMEM;
 		return NULL;
 	}
@@ -188,9 +195,10 @@ void *calloc(size_t nmemb, size_t size)
 
 	init_env();
 
-	if (mem_allocated <= mem_threshold) {
+	if (mem_allocated + nmemb * size <= mem_threshold) {
 		p = libc_calloc(nmemb, size);
 	} else {
+		log("Restricting calloc of %zu elements per %zu size\n", nmemb, size);
 		errno = ENOMEM;
 		return NULL;
 	}
@@ -211,6 +219,7 @@ void *realloc(void *ptr, size_t size)
 
 	init_env();
 
+	// TODO: CHECK new heap size *before* allowing realloc
 	if (mem_allocated <= mem_threshold) {
 		p = libc_realloc(ptr, size);
 	} else {
@@ -237,3 +246,76 @@ void free(void *ptr)
 	if (!no_hook)
 		account_alloc(ptr, 0);
 }
+
+void *mmap(void *addr, size_t length, int prot, int flags, int fd, off_t offset)
+{
+	void *p;
+
+	log("mmap for %p of length %zu prot %d flags %d fd %d offset %lld\n", 
+			addr, length, prot, flags, fd, offset);
+
+	if (libc_mmap == NULL)
+		SAVE_LIBC_FUNC(libc_mmap, "mmap");
+
+	p = libc_mmap(addr, length, prot, flags, fd, offset);
+	return p;
+}
+
+void *mmap2(void *addr, size_t length, int prot, int flags, int fd, off_t pgoffset)
+{
+	void *p;
+
+	log("mmap2 for %p of length %zu prot %d flags %d fd %d pgoffset %lld\n", 
+			addr, length, prot, flags, fd, pgoffset);
+
+	if (libc_mmap2 == NULL)
+		SAVE_LIBC_FUNC(libc_mmap2, "mmap2");
+
+	p = libc_mmap2(addr, length, prot, flags, fd, pgoffset);
+	return p;
+}
+
+void *mremap(void *old_address, size_t old_size, size_t new_size, int flags, ...)
+{
+	va_list ap;
+	void *new_address;
+	void *p;
+
+	log("mremap for %p of size %zu, new_size %zu, flags %d\n", 
+			old_address, old_size, new_size, flags);
+
+	if (libc_mremap == NULL)
+		SAVE_LIBC_FUNC(libc_mremap, "mremap");
+
+	va_start(ap, flags);
+	new_address = va_arg(ap, void *);
+	va_end(ap);
+
+	p = libc_mremap(old_address, old_size, new_size, flags, new_address);
+	return p;
+}
+
+int brk(void *addr)
+{
+	int ret;
+
+	log("brk set to %p\n", addr);
+	if (libc_brk == NULL)
+		SAVE_LIBC_FUNC(libc_brk, "brk");
+
+	ret = libc_brk(addr);
+	return ret;
+}
+
+void *sbrk(intptr_t increment)
+{
+	void *p;
+
+	log("sbrk increment %d\n", increment);
+	if (libc_sbrk == NULL)
+		SAVE_LIBC_FUNC(libc_sbrk, "sbrk");
+
+	p = sbrk(increment);
+	return p;
+}
+
